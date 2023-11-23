@@ -1,3 +1,13 @@
+# Warrior Api Game
+
+## Before you start
+
+* Remember to ugrade java JDK to 21 or later
+* Once you open project in IntelliJ remember to enable Annotation Processing in settings.
+* Make sure your project setup is using installed java version.
+* Make sure you have docker running, you can check by running command `docker ps` in terminal.
+* Start application by running `./gradlew run -t` in terminal. (-t flag is for continuous build, it will restart application on every change)
+
 ## Micronaut 4.2.0 Documentation
 
 - [User Guide](https://docs.micronaut.io/4.2.0/guide/index.html)
