@@ -2,11 +2,15 @@ package com.dalisra;
 
 import com.dalisra.data.Warrior;
 import com.dalisra.data.WarriorDTO;
+import com.dalisra.exceptions.GameException;
 import com.dalisra.repositories.WarriorRepository;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.*;
@@ -14,6 +18,8 @@ import java.util.*;
 // if we remove path, it will default to root path "/"
 @Controller
 public class GameController {
+
+    private static final Logger log = LoggerFactory.getLogger(GameController.class);
 
     public final WarriorRepository warriorRepository;
 
@@ -37,14 +43,19 @@ public class GameController {
     }
 
     @Get("/join/{name}")
-    public HttpResponse<Warrior> join(String name){
+    public HttpResponse<WarriorDTO> join(String name){
 
         if(name == null || name.isEmpty() || Objects.equals(name, "{name}"))
             return HttpResponse.badRequest();
 
         String apiKey = UUID.randomUUID().toString();
         var warrior = new Warrior(null, apiKey, 0L, 1, name);
-        warriorRepository.save(warrior);
-        return HttpResponse.temporaryRedirect(URI.create("/warrior/" + apiKey));
+        try {
+            warriorRepository.save(warrior);
+            return HttpResponse.temporaryRedirect(URI.create("/warrior/" + apiKey));
+        } catch (Exception e) {
+            log.error("Failed to save warrior: " + e.getLocalizedMessage(), e);
+            throw new GameException("Failed to save warrior, warrior already exists.", HttpStatus.CONFLICT);
+        }
     }
 }
