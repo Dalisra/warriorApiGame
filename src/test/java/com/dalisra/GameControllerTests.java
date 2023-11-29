@@ -1,5 +1,6 @@
 package com.dalisra;
 
+import com.dalisra.data.Warrior;
 import com.dalisra.data.WarriorDTO;
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.util.StringUtils;
@@ -15,9 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
 
 import jakarta.inject.Inject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,8 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @MicronautTest
 class GameControllerTests {
-
-    Logger log = LoggerFactory.getLogger(GameControllerTests.class);
 
     @Inject
     EmbeddedApplication<?> application;
@@ -46,7 +44,7 @@ class GameControllerTests {
         Page<WarriorDTO> warriors();
 
         @Get("/join/{name}")
-        HttpResponse join(String name);
+        HttpResponse<WarriorDTO> join(String name);
     }
 
     @Client("/warrior")
@@ -58,8 +56,10 @@ class GameControllerTests {
     @Test
     void testIndex(GameControllerClient testClient){
         var response = testClient.index();
-        assertTrue(response.containsKey("Join us warrior"));
-        assertEquals("/join/{name}", response.get("Join us warrior"));
+        assertEquals(2, response.size());
+        // we only test that links are present and not the text.
+        assertTrue(response.containsValue("/join/{name}"));
+        assertTrue(response.containsValue("/warriors"));
     }
 
     @Test
@@ -69,28 +69,27 @@ class GameControllerTests {
         var warriorsPage = testClient.warriors();
         assertEquals(0, warriorsPage.getTotalSize());
 
-        var warriorInfo = testClient.join("Thor");
+        List<String> warriorNames = List.of("Thor", "Odin", "Loki");
+        for(String warriorName : warriorNames){
+            var warriorInfo = testClient.join(warriorName);
 
-        HttpClientResponseException exception = Assertions.assertThrows(HttpClientResponseException.class, () -> {
-            testClient.join("Thor");
-        });
-        assertEquals(HttpStatus.CONFLICT, exception.getStatus());
+            HttpClientResponseException exception = Assertions.assertThrows(HttpClientResponseException.class, () -> testClient.join(warriorName));
+            assertEquals(HttpStatus.CONFLICT, exception.getStatus());
 
+            assertEquals(HttpStatus.TEMPORARY_REDIRECT, warriorInfo.getStatus());
+            String location = warriorInfo.header("Location");
+            assertTrue(location.startsWith("/warrior/"));
+            String apiKey = location.substring("/warrior/".length());
 
-        assertEquals(HttpStatus.TEMPORARY_REDIRECT, warriorInfo.getStatus());
-        String location = warriorInfo.header("Location");
-        assertTrue(location.startsWith("/warrior/"));
-        String apiKey = location.substring("/warrior/".length());
+            var warrior = warriorClient.info(apiKey);
 
-        var warrior = warriorClient.info(apiKey);
+            assertEquals(warriorName, warrior.name());
+            assertEquals(Warrior.STARTING_LEVEL, warrior.level());
+            assertEquals(Warrior.STARTING_GOLD, warrior.gold());
 
-        assertEquals("Thor", warrior.name());
-        assertEquals(1, warrior.level());
-        assertEquals(0, warrior.gold());
-
-        var warriorsInfoAfterInsert = testClient.warriors();
-
-        assertEquals(1, warriorsInfoAfterInsert.getTotalSize());
+            var warriorsInfoAfterInsert = testClient.warriors();
+            assertEquals(warriorNames.indexOf(warriorName)+1, warriorsInfoAfterInsert.getTotalSize());
+        }
     }
 
 }

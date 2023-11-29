@@ -28,6 +28,12 @@ public class GameController {
     }
 
     // same here if we remove path it will default to root path "/"
+
+    /**
+     * This is the index method that explains how to join the game
+     * and where to find a list of warriors.
+      * @return Map of string and links (strings) to the different endpoints.
+     */
     @Get
     /* Intro page that tells what to do in the game. */
     public Map<String, Object> index() {
@@ -49,7 +55,7 @@ public class GameController {
             return HttpResponse.badRequest();
 
         String apiKey = UUID.randomUUID().toString();
-        var warrior = new Warrior(null, apiKey, 0L, 1, name);
+        var warrior = new Warrior(name, apiKey);
         try {
             warriorRepository.save(warrior);
             return HttpResponse.temporaryRedirect(URI.create("/warrior/" + apiKey));
